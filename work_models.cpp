@@ -22,34 +22,49 @@ void transformSequential(const Values& input, Values& output)
 void transformWithJthreads(const Values& input, Values& output,
                            Ownership& ownerByIndex, int workers)
 {
-    // TODO 3. Create exactly 'workers' std::jthread objects and assign each a
-    // different contiguous part of [0, input.size()). For worker w, use:
-    //   begin = n * w / workers;
-    //   end   = n * (w + 1) / workers.
-    // For each processed index i, write BOTH:
-    //   output[i] = transform(input[i]);
-    //   ownerByIndex[i] = w;
-    // Each index must be processed once. Join all workers before returning.
-    (void)input;
-    (void)output;
-    (void)ownerByIndex;
-    (void)workers;
-    throw std::logic_error("TODO 3: implement std::jthread work partitioning");
+
+    {
+        const std::size_t n = input.size();
+        std::vector<std::jthread> threads;
+        threads.reserve(static_cast<std::size_t>(workers));
+
+        for (int w = 0; w < workers; ++w) {
+            const std::size_t begin =
+                n * static_cast<std::size_t>(w) /
+                static_cast<std::size_t>(workers);
+
+            const std::size_t end =
+                n * static_cast<std::size_t>(w + 1) /
+                static_cast<std::size_t>(workers);
+
+            threads.emplace_back([&, w, begin, end] {
+                for (std::size_t i = begin; i < end; ++i) {
+                    output[i] = transform(input[i]);
+                    ownerByIndex[i] = w;
+                }
+                });
+        }
+
+        for (auto& thread : threads) {
+            thread.join();
+        }
+    }
 }
 
 void transformWithOpenMP(const Values& input, Values& output,
                          Ownership& ownerByIndex, int workers)
 {
-    // TODO 4. Use #pragma omp parallel for and request 'workers' threads.
-    // For each independent iteration i, compute the same output as the
-    // sequential function AND record the participating OpenMP thread ID:
-    //   ownerByIndex[index] = omp_get_thread_num();
-    // Use a signed loop bound and cast the index to std::size_t as needed.
-    (void)input;
-    (void)output;
-    (void)ownerByIndex;
-    (void)workers;
-    throw std::logic_error("TODO 4: implement OpenMP loop worksharing");
+
+    {
+        const int n = static_cast<int>(input.size());
+
+#pragma omp parallel for num_threads(workers)
+        for (int i = 0; i < n; ++i) {
+            const std::size_t index = static_cast<std::size_t>(i);
+            output[index] = transform(input[index]);
+            ownerByIndex[index] = omp_get_thread_num();
+        }
+    }
 }
 
 void verifyValues(const Values& expected, const Values& actual, const char* label)

@@ -39,10 +39,10 @@ void printRuntimeContext()
     // supported by Visual Studio 2022 (/openmp) and GCC.
     // Distinguish the number of available processors from the maximum team size
     // reported for a subsequent parallel region.
-    std::cout << "  available processors  : " << "<complete>" << '\n';
-    std::cout << "  max threads (next)    : " << "<complete>" << '\n';
-    std::cout << "  dynamic teams enabled : " << "<complete>" << '\n';
-    std::cout << "  in active parallelism : " << "<complete>" << '\n';
+    std::cout << "  available processors  : " << omp_get_num_procs() << '\n';
+    std::cout << "  max threads (next)    : " << omp_get_max_threads() << '\n';
+    std::cout << "  dynamic teams enabled : " << omp_get_dynamic() << '\n';
+    std::cout << "  in active parallelism : " << omp_in_parallel() << '\n';
 }
 
 TeamObservation observeTeam()
@@ -56,8 +56,8 @@ TeamObservation observeTeam()
         // TODO 2. Obtain the actual size of the current team and determine
         // whether this execution context is inside an active parallel region.
         // A one-thread parallel region need not be active for omp_in_parallel().
-        const int teamSize = -1;
-        const bool active = false;
+        const int teamSize = omp_get_num_threads();
+        const bool active = omp_in_parallel() != 0;
 
         // Each entire record is appended without a concurrent vector mutation.
         #pragma omp critical(team_log)
